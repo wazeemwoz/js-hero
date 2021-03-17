@@ -1,25 +1,403 @@
-import logo from './logo.svg';
 import './App.css';
+import { renderSequence } from './render-sequence';
+import { useState, useEffect, useRef } from 'react';
+import levels_config from './levels';
+import { getMoves } from './engine';
+import Editor, { useMonaco } from "@monaco-editor/react";
+import * as esprima from "esprima";
 
-function App() {
+function SuccessIconPath() {
+  return
+}
+
+function setupMonaco(monaco) {
+  function ShowAutocompletion(obj) {
+    // Disable default autocompletion for javascript
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ noLib: true });
+
+    // Helper function to return the monaco completion item type of a thing
+    function getType(thing, isMember) {
+      isMember = (isMember == undefined) ? (typeof isMember == "boolean") ? isMember : false : false; // Give isMember a default value of false
+
+      switch ((typeof thing).toLowerCase()) {
+        case "object":
+          return monaco.languages.CompletionItemKind.Class;
+
+        case "function":
+          return (isMember) ? monaco.languages.CompletionItemKind.Method : monaco.languages.CompletionItemKind.Function;
+
+        default:
+          return (isMember) ? monaco.languages.CompletionItemKind.Property : monaco.languages.CompletionItemKind.Variable;
+      }
+    }
+
+    // Register object that will return autocomplete items 
+    monaco.languages.registerCompletionItemProvider('javascript', {
+      // Run this function when the period or open parenthesis is typed (and anything after a space)
+      triggerCharacters: ['.', '('],
+
+      // Function to generate autocompletion results
+      provideCompletionItems: function (model, position, token) {
+        // Split everything the user has typed on the current line up at each space, and only look at the last word
+        var last_chars = model.getValueInRange({ startLineNumber: position.lineNumber, startColumn: 0, endLineNumber: position.lineNumber, endColumn: position.column });
+        var words = last_chars.replace("\t", "").split(" ");
+        var active_typing = words[words.length - 1]; // What the user is currently typing (everything after the last space)
+
+        // If the last character typed is a period then we need to look at member objects of the obj object 
+        var is_member = active_typing.charAt(active_typing.length - 1) == ".";
+
+        // Array of autocompletion results
+        var result = [];
+
+        // Used for generic handling between member and non-member objects
+        var last_token = obj;
+        var prefix = '';
+
+        if (is_member) {
+          // Is a member, get a list of all members, and the prefix
+          var parents = active_typing.substring(0, active_typing.length - 1).split(".");
+          last_token = obj[parents[0]];
+          prefix = parents[0];
+
+          // Loop through all the parents the current one will have (to generate prefix)
+          for (var i = 1; i < parents.length; i++) {
+            if (last_token.hasOwnProperty(parents[i])) {
+              prefix += '.' + parents[i];
+              last_token = last_token[parents[i]];
+            } else {
+              // Not valid
+              return result;
+            }
+          }
+
+          prefix += '.';
+        }
+
+        // Get all the child properties of the last token
+        for (var prop in last_token) {
+          // Do not show properites that begin with "__"
+          if (last_token.hasOwnProperty(prop) && !prop.startsWith("__")) {
+            // Get the detail type (try-catch) incase object does not have prototype 
+            var details = '';
+            try {
+              details = last_token[prop].__proto__.constructor.name;
+            } catch (e) {
+              details = typeof last_token[prop];
+            }
+
+            // Create completion object
+            var to_push = {
+              label: prefix + prop,
+              kind: getType(last_token[prop], is_member),
+              detail: details,
+              insertText: prop
+            };
+
+            // Change insertText and documentation for functions
+            if (to_push.detail.toLowerCase() == 'function') {
+              to_push.insertText += "()";
+              to_push.documentation = (last_token[prop].toString()).split("{")[0]; // Show function prototype in the documentation popup
+            }
+
+            // Add to final results
+            result.push(to_push);
+          }
+        }
+
+        return {
+          suggestions: result
+        };
+      }
+    });
+  }
+
+  ShowAutocompletion({
+    player: {
+      turnLeft: function turnLeft() { },
+      turnRight: function turnRight() { },
+      step: function step() { },
+      attack: function attack() { },
+      isNextToTarget: function isNextToTarget() { },
+      check: function check(action) { },
+      checkMap: function checkMap(x, y) { },
+      x: 0, y: 0, direction: "NORTH", target_x: 0, target_y: 0
+    }
+  });
+}
+
+const initialCode = `
+/**
+ * player supports the following API
+ *      - Functions
+ *          - turnLeft()
+ *          - turnRight()
+ *          - step()
+ *          - attack()
+ *          - isNextToTarget(): tells you if you are in a winning position
+ *          - check(action): Tells you what is at the action you want to check
+ *              Argument action: Has to be 'LEFT', 'RIGHT' or 'STEP'
+ *              Returns: "MONSTER", "TARGET", "ROCK", "NOTHING" or "ERROR"
+ *          - checkMap(x, y): check the thing that is at coordinates x and y
+ *              Returns: "MONSTER", "PLAYER", "TARGET", "ROCK", "NOTHING" or "ERROR"
+ *      - Properties (variables in player)
+ *          - x: number
+ *          - y: number
+ *          - direction: "NORTH" or "SOUTH" or "EAST" or "WEST"
+ *          - target_x
+ *          - target_y
+ * 
+ * @param {*} player 
+ */
+function solution(player) {
+    // Add code here
+}
+`
+
+const storage = {
+  getJsHeroCode: () => {
+    const jsHeroCode = window.localStorage.getItem('jsHeroCode');
+    if (!jsHeroCode) {
+      window.localStorage.setItem('jsHeroCode', initialCode);
+      return initialCode;
+    }
+    return jsHeroCode;
+
+  },
+  setJsHeroCode: (jsHeroCode) => {
+    window.localStorage.setItem('jsHeroCode', jsHeroCode);
+  },
+  getCurrentLevel: () => {
+    const currentLevel = window.localStorage.getItem('currentLevel');
+    if (!currentLevel) {
+      window.localStorage.setItem('currentLevel', 1);
+      return 1;
+    }
+    return currentLevel;
+  },
+  setCurrentLevel: (level) => {
+    window.localStorage.setItem('currentLevel', level);
+  }
+}
+
+function validator(code, severity) {
+  var markers = [];
+  try {
+    var syntax = esprima.parse(code, { tolerant: true, loc: true, range: true });
+    if (syntax.errors.length > 0) {
+      for (var i = 0; i < syntax.errors.length; ++i) {
+        var e = syntax.errors[i];
+        markers.push({
+          severity: severity,
+          startLineNumber: e.lineNumber,
+          startColumn: e.column,
+          endLineNumber: e.lineNumber,
+          endColumn: e.column,
+          message: e.description
+        });
+      }
+    }
+    // eval(code);
+  } catch (e) {
+    markers.push({
+      severity: severity,
+      startLineNumber: e.lineNumber,
+      startColumn: e.column,
+      endLineNumber: e.lineNumber,
+      endColumn: e.column,
+      message: e.toString()
+    });
+  }
+  return markers;
+}
+
+function JsHeroEditor({ handleExecute }) {
+  const [code, setCode] = useState(storage.getJsHeroCode());
+  const monaco = useMonaco();
+  const editorRef = useRef(null);
+
+  function handleEditorWillMount(monaco) {
+    setupMonaco(monaco);
+  }
+
+  function handleEditorDidMount(editor) {
+    editor._domElement.id = "code-editor";
+    editorRef.current = editor;
+  }
+
+  function handleEditorChange(value) {
+    setCode(value);
+  }
+
+  useEffect(() => {
+    storage.setJsHeroCode(code);
+    if (monaco) {
+      const markers = validator(code, monaco.MarkerSeverity.Error);
+      if (markers.length == 0) {
+        handleExecute(code);
+      } else {
+        handleExecute(initialCode);
+      }
+      monaco.editor.setModelMarkers(editorRef.current.getModel(), "code-editor", markers);
+    }
+  }, [monaco, code]);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{
+      float: "left",
+      width: "50%",
+      overflow: "scroll"
+    }} >
+      <Editor
+        height="100vh"
+        defaultLanguage="javascript"
+        defaultValue={code}
+        onChange={handleEditorChange}
+        theme="vs-dark"
+        onMount={handleEditorDidMount}
+        beforeMount={handleEditorWillMount}
+      />
     </div>
   );
 }
+
+function LevelToggle({ name, success, onToggle }) {
+  const classColor = success ? "bg-green-500 hover:bg-green-700 text-white" : "bg-red-500 hover:bg-red-700 text-white";
+  return (
+    <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex items-center"}>
+      {
+        success ?
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-smile"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-frown"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+      }
+      <span className="px-1" >Level {name}</span>
+    </button>
+  )
+}
+
+function Levels({ storage, configs, solution, failureMessage, setFailureMessage }) {
+  let allSuccess = true;
+  let currentLevel = storage.getCurrentLevel();
+  const [toggledLevel, setToggledLevel] = useState({ i: -1, error: null });
+
+  let toggles = [];
+  for (var i = 0; i < currentLevel; i++) {
+    const id = "level-" + (i + 1);
+    const { moves } = solution(configs[i].design);
+    const lastAction = moves.pop()[0];
+    const levelPassed = lastAction.action !== 'die';
+    if (levelPassed) {
+      if (currentLevel < configs.length && allSuccess && currentLevel == (i + 1)) {
+        currentLevel++;
+        storage.setCurrentLevel(currentLevel);
+      }
+    } else {
+      allSuccess = false;
+    }
+
+    toggles.push({
+      success: levelPassed,
+      config: configs[i],
+      id
+    });
+  }
+
+  return (
+    <div id="results" style={{
+      height: "100vh",
+      float: "left",
+      width: "50%",
+      overflow: "scroll",
+    }}>
+      <div style={{
+        display: "flex",
+        "flex-direction": "row",
+        "flex-wrap": "wrap"
+      }}>
+        {
+          toggles.map((toggle, i) => {
+            const { id, success, config } = toggle;
+            const onToggle = () => {
+              if (toggledLevel.i === i) {
+                setToggledLevel({ i: -1, error: null });
+              } else {
+                var { moves, error } = solution(config.design);
+                setToggledLevel({ i, error });
+                var canvas = document.getElementById("canvas-" + id);
+                renderSequence(canvas, config, moves)
+              }
+            }
+
+            return <LevelToggle
+              key={i + 1}
+              name={i + 1}
+              success={success}
+              onToggle={onToggle} />
+          })
+        }
+      </div>
+      <StatusInfo type="alert" message={toggledLevel.error ? toggledLevel.error.message : null} />
+      {toggles.map((toggle, i) => {
+        const id = "canvas-" + toggle.id;
+        return <canvas style={{
+          display: toggledLevel.i == i ? "inline-block" : "none",
+          "align-content": "flex-end"
+        }} key={id} id={id} />
+      })}
+    </div>
+  )
+}
+
+function StatusInfo({ message }) {
+  if (!message) {
+    return null;
+  }
+  return (<div className="flex items-center bg-red-500 text-white text-sm font-bold px-4 py-3 my-2" role="alert">
+    <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-alert-circle"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <p className="px-2">{message}</p>
+  </div>)
+}
+
+function App() {
+  const [failureMessage, setFailureMessage] = useState(null);
+  const solutionHarness = (answer) => {
+    return (level) => {
+      let result
+      try {
+        result = getMoves(level, answer);
+      } catch (e) {
+        result.error = e;
+      }
+      return result;
+    }
+  }
+  const [solutionFunc, setSolutionFunc] = useState({ solution: solutionHarness(() => { }) });
+
+  function handleExecute(value) {
+    let code = value + "\nwindow.solution = solution;";
+    try {
+      setFailureMessage(null);
+      eval(code);
+      setSolutionFunc({ solution: solutionHarness(window.solution) })
+    } catch (e) {
+      setFailureMessage(e.message)
+    }
+  }
+
+  return (
+    <div className="App" style={{
+      height: "100vh"
+    }}>
+      <Levels
+        storage={storage}
+        configs={levels_config}
+        solution={solutionFunc.solution}
+        failureMessage={failureMessage}
+        setFailureMessage={setFailureMessage}
+      />
+      <JsHeroEditor handleExecute={handleExecute} />
+    </div>
+  );
+}
+
 
 export default App;
