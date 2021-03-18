@@ -1,14 +1,12 @@
 import './App.css';
 import { renderSequence } from './render-sequence';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, useMemo } from 'react';
 import levels_config from './levels';
 import { getMoves } from './engine';
 import Editor, { useMonaco } from "@monaco-editor/react";
 import * as esprima from "esprima";
 
-function SuccessIconPath() {
-  return
-}
+const MONACO_MARKER_SEVERITY_ERROR = 8;
 
 function setupMonaco(monaco) {
   function ShowAutocompletion(obj) {
@@ -179,10 +177,11 @@ const storage = {
   }
 }
 
-function validator(code, severity) {
+function validator(code, severity, runtimeError) {
   var markers = [];
   try {
-    var syntax = esprima.parse(code, { tolerant: true, loc: true, range: true });
+    const strictCode = "'use strict';" + code;
+    var syntax = esprima.parse(strictCode, { tolerant: true, loc: true, range: true });
     if (syntax.errors.length > 0) {
       for (var i = 0; i < syntax.errors.length; ++i) {
         var e = syntax.errors[i];
@@ -210,8 +209,29 @@ function validator(code, severity) {
   return markers;
 }
 
-function JsHeroEditor({ handleExecute }) {
+function runtimeErrorMarker(code, marker) {
+  if (!code) {
+    return marker;
+  }
+
+  const lines = code.split("\n");
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i].includes("function solution")) {
+      return {
+        severity: marker.severity,
+        startLineNumber: i + 1,
+        startColumn: marker.column,
+        endLineNumber: lines.length + 1,
+        endColumn: marker.column,
+        message: marker.message
+      };
+    }
+  }
+}
+
+function JsHeroEditor({ handleExecute, marker }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
+
   const monaco = useMonaco();
   const editorRef = useRef(null);
 
@@ -237,9 +257,10 @@ function JsHeroEditor({ handleExecute }) {
       } else {
         handleExecute(initialCode);
       }
+      // const showMarkers = marker ? markers.concat([runtimeErrorMarker(code, marker)]) : markers;
       monaco.editor.setModelMarkers(editorRef.current.getModel(), "code-editor", markers);
     }
-  }, [monaco, code]);
+  }, [monaco, code, marker]);
 
   return (
     <div style={{
@@ -274,16 +295,36 @@ function LevelToggle({ name, success, onToggle }) {
   )
 }
 
-function Levels({ storage, configs, solution, failureMessage, setFailureMessage }) {
+function errorToMarker(error) {
+  if (!error || error.name === "LevelError") {
+    return null;
+  }
+
+  return {
+    severity: MONACO_MARKER_SEVERITY_ERROR,
+    startLineNumber: error.lineNumber,
+    startColumn: error.column,
+    endLineNumber: error.lineNumber,
+    endColumn: error.column,
+    message: error.toString()
+  }
+}
+
+function Levels(props) {
+  const { storage, configs, solution, marker, setMarker } = props;
   let allSuccess = true;
   let currentLevel = storage.getCurrentLevel();
   const [toggledLevel, setToggledLevel] = useState({ i: -1, error: null });
 
+  let newMarker;
   let toggles = [];
   for (var i = 0; i < currentLevel; i++) {
     const id = "level-" + (i + 1);
-    const { moves } = solution(configs[i].design);
-    const lastAction = moves.pop()[0];
+    const { moves, error } = solution(configs[i].design);
+    if (!newMarker) {
+      newMarker = errorToMarker(error);
+    }
+    const lastAction = moves[moves.length - 1][0];
     const levelPassed = lastAction.action !== 'die';
     if (levelPassed) {
       if (currentLevel < configs.length && allSuccess && currentLevel == (i + 1)) {
@@ -293,13 +334,24 @@ function Levels({ storage, configs, solution, failureMessage, setFailureMessage 
     } else {
       allSuccess = false;
     }
-
+    if (toggledLevel.i === i) {
+      const message = error ? error.message : null;
+      if (toggledLevel.message !== message) {
+        setToggledLevel({ i, message })
+      }
+      renderSequence(document.getElementById("canvas-" + id), configs[i], moves)
+    }
     toggles.push({
       success: levelPassed,
       config: configs[i],
       id
     });
   }
+  useEffect(() => {
+    if (JSON.stringify(newMarker) !== JSON.stringify(marker)) {
+      setMarker(newMarker);
+    }
+  }, [newMarker, marker]);
 
   return (
     <div id="results" style={{
@@ -318,12 +370,12 @@ function Levels({ storage, configs, solution, failureMessage, setFailureMessage 
             const { id, success, config } = toggle;
             const onToggle = () => {
               if (toggledLevel.i === i) {
-                setToggledLevel({ i: -1, error: null });
+                setToggledLevel({ i: -1 });
               } else {
-                var { moves, error } = solution(config.design);
-                setToggledLevel({ i, error });
-                var canvas = document.getElementById("canvas-" + id);
-                renderSequence(canvas, config, moves)
+                // var { moves, error } = solution(config.design);
+                setToggledLevel({ i });
+                // var canvas = document.getElementById("canvas-" + id);
+                // renderSequence(canvas, config, moves)
               }
             }
 
@@ -335,7 +387,7 @@ function Levels({ storage, configs, solution, failureMessage, setFailureMessage 
           })
         }
       </div>
-      <StatusInfo type="alert" message={toggledLevel.error ? toggledLevel.error.message : null} />
+      <StatusInfo type="alert" message={toggledLevel.message} />
       {toggles.map((toggle, i) => {
         const id = "canvas-" + toggle.id;
         return <canvas style={{
@@ -357,8 +409,7 @@ function StatusInfo({ message }) {
   </div>)
 }
 
-function App() {
-  const [failureMessage, setFailureMessage] = useState(null);
+function useSolutionFunc() {
   const solutionHarness = (answer) => {
     return (level) => {
       let result
@@ -370,14 +421,22 @@ function App() {
       return result;
     }
   }
-  const [solutionFunc, setSolutionFunc] = useState({ solution: solutionHarness(() => { }) });
+  const [solutionFunc, _setSolutionFunc] = useState({ solution: solutionHarness(() => { }) });
+  const setSolutionFunc = (func) => _setSolutionFunc({ solution: solutionHarness(func) });
+  return [solutionFunc.solution, setSolutionFunc];
+}
+
+function App() {
+  const [failureMessage, setFailureMessage] = useState(null);
+  const [marker, setMarker] = useState(null);
+  const [solution, setSolutionFunc] = useSolutionFunc();
 
   function handleExecute(value) {
     let code = value + "\nwindow.solution = solution;";
     try {
       setFailureMessage(null);
       eval(code);
-      setSolutionFunc({ solution: solutionHarness(window.solution) })
+      setSolutionFunc(window.solution);
     } catch (e) {
       setFailureMessage(e.message)
     }
@@ -390,14 +449,15 @@ function App() {
       <Levels
         storage={storage}
         configs={levels_config}
-        solution={solutionFunc.solution}
+        solution={solution}
         failureMessage={failureMessage}
         setFailureMessage={setFailureMessage}
+        setMarker={setMarker}
+        marker={marker}
       />
-      <JsHeroEditor handleExecute={handleExecute} />
+      <JsHeroEditor marker={marker} handleExecute={handleExecute} />
     </div>
   );
 }
-
 
 export default App;
