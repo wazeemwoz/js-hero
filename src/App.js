@@ -1,11 +1,12 @@
 import './App.css';
 import { renderSequence } from './render-sequence';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import levels_config from './levels';
 import { getMoves } from './engine';
 import Editor, { useMonaco } from "@monaco-editor/react";
 import * as esprima from "esprima";
-import Draggable from 'react-draggable';
+import { debounce } from 'lodash';
+import { func } from 'prop-types';
 
 const MONACO_MARKER_SEVERITY_ERROR = 8;
 
@@ -210,37 +211,38 @@ function validator(code, severity, runtimeError) {
   return markers;
 }
 
-function JsHeroEditor({ handleExecute, marker }) {
+function JsHeroEditor({ updateSolution }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
-
-  const monaco = useMonaco();
+  const delayedUpdate = useCallback(debounce((code, update) => handleValidation(code, update), 500), []);
+  const monacoRef = useRef(null);
   const editorRef = useRef(null);
 
-  function handleEditorWillMount(monaco) {
+  const handleEditorWillMount = (monaco) => {
     setupMonaco(monaco);
   }
 
-  function handleEditorDidMount(editor) {
+  const handleEditorDidMount = (editor, monaco) => {
     editor._domElement.id = "code-editor";
     editorRef.current = editor;
+    monacoRef.current = monaco;
+    handleEditorChange(code);
   }
 
-  function handleEditorChange(value) {
-    setCode(value);
-  }
-
-  useEffect(() => {
-    storage.setJsHeroCode(code);
-    if (monaco) {
-      const markers = validator(code, monaco.MarkerSeverity.Error);
-      if (markers.length == 0) {
-        handleExecute(code);
-      } else {
-        handleExecute(initialCode);
-      }
-      monaco.editor.setModelMarkers(editorRef.current.getModel(), "code-editor", markers);
+  const handleValidation = (value, update) => {
+    const markers = validator(value, monacoRef.current.MarkerSeverity.Error);
+    if (markers.length == 0) {
+      update(value);
+    } else {
+      update(initialCode);
     }
-  }, [monaco, code, marker]);
+    monacoRef.current.editor.setModelMarkers(editorRef.current.getModel(), "code-editor", markers);
+  }
+
+  const handleEditorChange = (value) => {
+    setCode(value);
+    storage.setJsHeroCode(value);
+    delayedUpdate(value, updateSolution);
+  }
 
   return (
     <div style={{
@@ -255,6 +257,7 @@ function JsHeroEditor({ handleExecute, marker }) {
         onChange={handleEditorChange}
         theme="vs-dark"
         onMount={handleEditorDidMount}
+
         beforeMount={handleEditorWillMount}
       />
     </div>
@@ -275,69 +278,27 @@ function LevelToggle({ name, success, onToggle }) {
   )
 }
 
-function errorToMarker(error) {
-  if (!error || error.name === "LevelError") {
-    return null;
+function LevelDisplay({ message, isExpanded, id, config, moves }) {
+  const cavasId = "canvas-" + id;
+  const canvasRef = useRef(null);
+  if (isExpanded) {
+    renderSequence(document.getElementById(cavasId), config, moves);
   }
 
-  return {
-    severity: MONACO_MARKER_SEVERITY_ERROR,
-    startLineNumber: error.lineNumber,
-    startColumn: error.column,
-    endLineNumber: error.lineNumber,
-    endColumn: error.column,
-    message: error.toString()
-  }
+  return (
+    <div key={"toggle" + id} style={{ width: "100%" }}>
+      { isExpanded ? <StatusInfo type="alert" message={message} /> : null}
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: isExpanded ? "inline-block" : "none",
+          alignContent: "flex-end"
+        }} id={cavasId} />
+    </div>
+  )
 }
 
-function Levels(props) {
-  const { storage, configs, solution, marker, setMarker } = props;
-  let currentLevel = storage.getCurrentLevel();
-  const [toggledLevel, setToggledLevel] = useState({ i: -1, error: null });
-  const [toggles, setToggles] = useState([]);
-
-  const checkAnswers = (toggled) => {
-    let allSuccess = true;
-    let newMarker;
-    let newToggles = [];
-    const toggle_i = typeof toggled == "number" ? toggled : toggledLevel.i;
-    for (var i = 0; i < currentLevel; i++) {
-      const id = "level-" + (i + 1);
-      const { moves, error } = solution(configs[i].design);
-      if (!newMarker) {
-        newMarker = errorToMarker(error);
-      }
-      const lastAction = moves[moves.length - 1][0];
-      const levelPassed = lastAction.action !== 'die';
-      if (levelPassed) {
-        if (currentLevel < configs.length && allSuccess && currentLevel == (i + 1)) {
-          currentLevel++;
-          storage.setCurrentLevel(currentLevel);
-        }
-      } else {
-        allSuccess = false;
-      }
-      if (toggle_i === i) {
-        const message = error ? error.message : null;
-        setToggledLevel({ i, message })
-        renderSequence(document.getElementById("canvas-" + id), configs[i], moves)
-      }
-      newToggles.push({
-        success: levelPassed,
-        id
-      });
-    }
-
-    if (JSON.stringify(newMarker) !== JSON.stringify(marker)) {
-      setMarker(newMarker);
-    }
-    setToggles(newToggles);
-  }
-
-  if (toggles.length == 0 && solution) {
-    checkAnswers(toggledLevel.i);
-  }
-
+function Levels({ levelsState, updateLevelState }) {
   return (
     <div id="results" style={{
       height: "100vh",
@@ -351,14 +312,10 @@ function Levels(props) {
         flexWrap: "wrap"
       }}>
         {
-          toggles.map((toggle, i) => {
-            const { success } = toggle;
+          levelsState.map((levelState, i) => {
+            const { success } = levelState;
             const onToggle = () => {
-              if (toggledLevel.i === i) {
-                setToggledLevel({ i: -1 });
-              } else {
-                checkAnswers(i);
-              }
+              updateLevelState(i);
             }
 
             return <LevelToggle
@@ -369,15 +326,10 @@ function Levels(props) {
           })
         }
       </div>
-      <StatusInfo type="alert" message={toggledLevel.message} />
-      {toggles.map((toggle, i) => {
-        const id = "canvas-" + toggle.id;
-        return <canvas style={{
-          display: toggledLevel.i == i ? "inline-block" : "none",
-          alignContent: "flex-end"
-        }} key={id} id={id} />
-      })}
-      <FloatingButton onClick={checkAnswers} label="Compile" />
+      {levelsState.map((levelState) => (
+        <LevelDisplay {...levelState} />
+      ))}
+      {/* <FloatingButton onClick={updateLevelState} label="Compile" /> */}
     </div>
   )
 }
@@ -394,14 +346,23 @@ function StatusInfo({ message }) {
 
 function FloatingButton({ onClick, label }) {
   return (
-    <Draggable>
-      <button
-        onClick={onClick}
-        className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none"
-      >
-        <span>{label}</span>
-      </button>
-    </Draggable>
+    // <Draggable>
+    <button
+      onClick={onClick}
+      className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none"
+      style={{
+        margin: 0,
+        top: 'auto',
+        right: 200,
+        bottom: 200,
+        left: 'auto',
+        position: 'fixed',
+        zIndex: -1
+      }}
+    >
+      <span>{label}</span>
+    </button>
+    // </Draggable>
   )
 }
 
@@ -424,10 +385,55 @@ function useSolutionFunc() {
 
 function App() {
   const [failureMessage, setFailureMessage] = useState(null);
-  const [marker, setMarker] = useState(null);
   const [solution, setSolutionFunc] = useSolutionFunc();
+  const [levelsState, setLevelsState] = useState([]);
 
-  function handleExecute(value) {
+  const updateLevelState = (levelClicked) => {
+    let currentLevel = storage.getCurrentLevel();
+    let allSuccess = true;
+    let newLevelsState = [];
+    const toggle_i = typeof levelClicked == "number" ? levelClicked : -1;
+    for (var i = 0; i < levels_config.length && i <= currentLevel; i++) {
+      const { moves, error } = solution(levels_config[i].design);
+      const lastAction = moves[moves.length - 1][0];
+      const levelPassed = lastAction.action !== 'die';
+      const newLevelState = {
+        id: "level-" + (i + 1),
+        isExpanded: levelsState[i] ? levelsState[i].isExpanded : false,
+        message: failureMessage || (error ? error.message : null),
+        success: levelPassed,
+        config: levels_config[i],
+        moves: moves
+      }
+
+      if (levelPassed && allSuccess) {
+        currentLevel = Math.max(i + 1, currentLevel);
+      } else {
+        allSuccess = false;
+      }
+
+      if (toggle_i > -1) {
+        newLevelState.isExpanded = toggle_i == i ? !newLevelState.isExpanded : false;
+      }
+
+      newLevelsState.push(newLevelState);
+    }
+
+    storage.setCurrentLevel(currentLevel);
+    setLevelsState(newLevelsState);
+  }
+
+  useEffect(() => {
+    if (solution) {
+      if (levelsState.length == 0) {
+        updateLevelState(-2);
+      } else {
+        updateLevelState(-1);
+      }
+    }
+  }, [levelsState.length, solution]);
+
+  function updateSolution(value) {
     let code = value + "\nwindow.solution = solution;";
     try {
       setFailureMessage(null);
@@ -443,15 +449,10 @@ function App() {
       height: "100vh"
     }}>
       <Levels
-        storage={storage}
-        configs={levels_config}
-        solution={solution}
-        failureMessage={failureMessage}
-        setFailureMessage={setFailureMessage}
-        setMarker={setMarker}
-        marker={marker}
+        levelsState={levelsState}
+        updateLevelState={updateLevelState}
       />
-      <JsHeroEditor marker={marker} handleExecute={handleExecute} />
+      <JsHeroEditor updateSolution={updateSolution} />
     </div>
   );
 }

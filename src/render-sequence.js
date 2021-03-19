@@ -306,6 +306,10 @@ export function renderSequence(canvas, level, moves) {
         return stage;
     }
 
+    if (!canvas) {
+        return;
+    }
+
     var stage = init();
 
     canvas.width = level.width;
