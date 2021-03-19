@@ -434,7 +434,10 @@ function App() {
   }, [levelsState.length, solution]);
 
   function updateSolution(value) {
-    let code = value + "\nwindow.solution = solution;";
+    let code = "function loopProtect(i){if(i > 10000){throw Error('Possible infinite loop detected');}};" + value + "\nwindow.solution = solution;";
+    code = code + "\nwindow.solution = solution;";
+    code = code.replaceAll(/for(.*?){/sg, ';var lpi=0;for$1{;loopProtect(lpi++);')
+    code = code.replaceAll(/while(.*?){/sg, ';var lpi=0;while$1{;loopProtect(lpi++);')
     try {
       setFailureMessage(null);
       eval(code);
