@@ -1,25 +1,25 @@
 {
   "files": {
-    "main.css": "/js-hero/static/css/main.1d9a68fa.chunk.css",
-    "main.js": "/js-hero/static/js/main.283ba41e.chunk.js",
-    "main.js.map": "/js-hero/static/js/main.283ba41e.chunk.js.map",
-    "runtime-main.js": "/js-hero/static/js/runtime-main.dccce13a.js",
-    "runtime-main.js.map": "/js-hero/static/js/runtime-main.dccce13a.js.map",
-    "static/js/2.0855abbe.chunk.js": "/js-hero/static/js/2.0855abbe.chunk.js",
-    "static/js/2.0855abbe.chunk.js.map": "/js-hero/static/js/2.0855abbe.chunk.js.map",
-    "static/js/3.26f15d44.chunk.js": "/js-hero/static/js/3.26f15d44.chunk.js",
-    "static/js/3.26f15d44.chunk.js.map": "/js-hero/static/js/3.26f15d44.chunk.js.map",
+    "main.css": "/js-hero/static/css/main.778a164d.chunk.css",
+    "main.js": "/js-hero/static/js/main.a34c530f.chunk.js",
+    "main.js.map": "/js-hero/static/js/main.a34c530f.chunk.js.map",
+    "runtime-main.js": "/js-hero/static/js/runtime-main.62a330de.js",
+    "runtime-main.js.map": "/js-hero/static/js/runtime-main.62a330de.js.map",
+    "static/js/2.f6a4e9cb.chunk.js": "/js-hero/static/js/2.f6a4e9cb.chunk.js",
+    "static/js/2.f6a4e9cb.chunk.js.map": "/js-hero/static/js/2.f6a4e9cb.chunk.js.map",
+    "static/js/3.740ce588.chunk.js": "/js-hero/static/js/3.740ce588.chunk.js",
+    "static/js/3.740ce588.chunk.js.map": "/js-hero/static/js/3.740ce588.chunk.js.map",
     "index.html": "/js-hero/index.html",
-    "static/css/main.1d9a68fa.chunk.css.map": "/js-hero/static/css/main.1d9a68fa.chunk.css.map",
-    "static/js/2.0855abbe.chunk.js.LICENSE.txt": "/js-hero/static/js/2.0855abbe.chunk.js.LICENSE.txt",
+    "static/css/main.778a164d.chunk.css.map": "/js-hero/static/css/main.778a164d.chunk.css.map",
+    "static/js/2.f6a4e9cb.chunk.js.LICENSE.txt": "/js-hero/static/js/2.f6a4e9cb.chunk.js.LICENSE.txt",
     "static/media/orc.47ce91db.png": "/js-hero/static/media/orc.47ce91db.png",
     "static/media/player.1eb2ce02.png": "/js-hero/static/media/player.1eb2ce02.png",
     "static/media/princess.3590a125.png": "/js-hero/static/media/princess.3590a125.png"
   },
   "entrypoints": [
-    "static/js/runtime-main.dccce13a.js",
-    "static/js/2.0855abbe.chunk.js",
-    "static/css/main.1d9a68fa.chunk.css",
-    "static/js/main.283ba41e.chunk.js"
+    "static/js/runtime-main.62a330de.js",
+    "static/js/2.f6a4e9cb.chunk.js",
+    "static/css/main.778a164d.chunk.css",
+    "static/js/main.a34c530f.chunk.js"
   ]
 }
