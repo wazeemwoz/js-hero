@@ -1,6 +1,6 @@
 import './App.css';
 import { renderSequence } from './render-sequence';
-import { useState, useEffect, useRef, createContext, useContext, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import levels_config from './levels';
 import { getMoves } from './engine';
 import Editor, { useMonaco } from "@monaco-editor/react";
@@ -210,26 +210,6 @@ function validator(code, severity, runtimeError) {
   return markers;
 }
 
-function runtimeErrorMarker(code, marker) {
-  if (!code) {
-    return marker;
-  }
-
-  const lines = code.split("\n");
-  for (var i = 0; i < lines.length; i++) {
-    if (lines[i].includes("function solution")) {
-      return {
-        severity: marker.severity,
-        startLineNumber: i + 1,
-        startColumn: marker.column,
-        endLineNumber: lines.length + 1,
-        endColumn: marker.column,
-        message: marker.message
-      };
-    }
-  }
-}
-
 function JsHeroEditor({ handleExecute, marker }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
 
@@ -276,7 +256,6 @@ function JsHeroEditor({ handleExecute, marker }) {
         theme="vs-dark"
         onMount={handleEditorDidMount}
         beforeMount={handleEditorWillMount}
-
       />
     </div>
   );
@@ -288,8 +267,8 @@ function LevelToggle({ name, success, onToggle }) {
     <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex items-center"}>
       {
         success ?
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-smile"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-          : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-frown"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-smile"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-frown"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
       }
       <span className="px-1" >Level {name}</span>
     </button>
@@ -368,8 +347,8 @@ function Levels(props) {
     }}>
       <div style={{
         display: "flex",
-        "flex-direction": "row",
-        "flex-wrap": "wrap"
+        flexDirection: "row",
+        flexWrap: "wrap"
       }}>
         {
           toggles.map((toggle, i) => {
@@ -395,7 +374,7 @@ function Levels(props) {
         const id = "canvas-" + toggle.id;
         return <canvas style={{
           display: toggledLevel.i == i ? "inline-block" : "none",
-          "align-content": "flex-end"
+          alignContent: "flex-end"
         }} key={id} id={id} />
       })}
       <FloatingButton onClick={checkAnswers} label="Compile" />
@@ -408,7 +387,7 @@ function StatusInfo({ message }) {
     return null;
   }
   return (<div className="flex items-center bg-red-500 text-white text-sm font-bold px-4 py-3 my-2" role="alert">
-    <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-alert-circle"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-alert-circle"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     <p className="px-2">{message}</p>
   </div>)
 }
@@ -416,8 +395,10 @@ function StatusInfo({ message }) {
 function FloatingButton({ onClick, label }) {
   return (
     <Draggable>
-      <button onClick={onClick}
-        className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none">
+      <button
+        onClick={onClick}
+        className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none"
+      >
         <span>{label}</span>
       </button>
     </Draggable>
