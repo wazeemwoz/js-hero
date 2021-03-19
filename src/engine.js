@@ -63,7 +63,7 @@ export const getMoves = function (_map, answer) {
         if (!!monster) {
             moves.push([{ id: monster, action: 'attack' }, { id: 'p', action: 'die' }]);
             moves.push([{ id: monster, action: 'win' }]);
-            throw LevelError("Monster " + monster + " killed you!");
+            throw LevelError("Monster killed you!");
         }
 
         var { x, y } = directionToCoords(player.direction, player.x, player.y);
@@ -205,7 +205,7 @@ export const getMoves = function (_map, answer) {
     } else {
         const lastMove = moves[moves.length - 1].find(move => move.id == 'p');
 
-        if (lastMove.action != 'win' && lastMove.action != 'die') {
+        if (!lastMove || (lastMove.action != 'win' && lastMove.action != 'die')) {
             moves.push([{ id: 'p', action: 'die' }]);
         }
     }

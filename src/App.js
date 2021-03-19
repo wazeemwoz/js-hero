@@ -5,6 +5,7 @@ import levels_config from './levels';
 import { getMoves } from './engine';
 import Editor, { useMonaco } from "@monaco-editor/react";
 import * as esprima from "esprima";
+import Draggable from 'react-draggable';
 
 const MONACO_MARKER_SEVERITY_ERROR = 8;
 
@@ -257,7 +258,6 @@ function JsHeroEditor({ handleExecute, marker }) {
       } else {
         handleExecute(initialCode);
       }
-      // const showMarkers = marker ? markers.concat([runtimeErrorMarker(code, marker)]) : markers;
       monaco.editor.setModelMarkers(editorRef.current.getModel(), "code-editor", markers);
     }
   }, [monaco, code, marker]);
@@ -276,6 +276,7 @@ function JsHeroEditor({ handleExecute, marker }) {
         theme="vs-dark"
         onMount={handleEditorDidMount}
         beforeMount={handleEditorWillMount}
+
       />
     </div>
   );
@@ -312,46 +313,51 @@ function errorToMarker(error) {
 
 function Levels(props) {
   const { storage, configs, solution, marker, setMarker } = props;
-  let allSuccess = true;
   let currentLevel = storage.getCurrentLevel();
   const [toggledLevel, setToggledLevel] = useState({ i: -1, error: null });
+  const [toggles, setToggles] = useState([]);
 
-  let newMarker;
-  let toggles = [];
-  for (var i = 0; i < currentLevel; i++) {
-    const id = "level-" + (i + 1);
-    const { moves, error } = solution(configs[i].design);
-    if (!newMarker) {
-      newMarker = errorToMarker(error);
-    }
-    const lastAction = moves[moves.length - 1][0];
-    const levelPassed = lastAction.action !== 'die';
-    if (levelPassed) {
-      if (currentLevel < configs.length && allSuccess && currentLevel == (i + 1)) {
-        currentLevel++;
-        storage.setCurrentLevel(currentLevel);
+  const checkAnswers = (toggled) => {
+    let allSuccess = true;
+    let newMarker;
+    let newToggles = [];
+    const toggle_i = typeof toggled == "number" ? toggled : toggledLevel.i;
+    for (var i = 0; i < currentLevel; i++) {
+      const id = "level-" + (i + 1);
+      const { moves, error } = solution(configs[i].design);
+      if (!newMarker) {
+        newMarker = errorToMarker(error);
       }
-    } else {
-      allSuccess = false;
-    }
-    if (toggledLevel.i === i) {
-      const message = error ? error.message : null;
-      if (toggledLevel.message !== message) {
+      const lastAction = moves[moves.length - 1][0];
+      const levelPassed = lastAction.action !== 'die';
+      if (levelPassed) {
+        if (currentLevel < configs.length && allSuccess && currentLevel == (i + 1)) {
+          currentLevel++;
+          storage.setCurrentLevel(currentLevel);
+        }
+      } else {
+        allSuccess = false;
+      }
+      if (toggle_i === i) {
+        const message = error ? error.message : null;
         setToggledLevel({ i, message })
+        renderSequence(document.getElementById("canvas-" + id), configs[i], moves)
       }
-      renderSequence(document.getElementById("canvas-" + id), configs[i], moves)
+      newToggles.push({
+        success: levelPassed,
+        id
+      });
     }
-    toggles.push({
-      success: levelPassed,
-      config: configs[i],
-      id
-    });
-  }
-  useEffect(() => {
+
     if (JSON.stringify(newMarker) !== JSON.stringify(marker)) {
       setMarker(newMarker);
     }
-  }, [newMarker, marker]);
+    setToggles(newToggles);
+  }
+
+  if (toggles.length == 0 && solution) {
+    checkAnswers(toggledLevel.i);
+  }
 
   return (
     <div id="results" style={{
@@ -367,15 +373,12 @@ function Levels(props) {
       }}>
         {
           toggles.map((toggle, i) => {
-            const { id, success, config } = toggle;
+            const { success } = toggle;
             const onToggle = () => {
               if (toggledLevel.i === i) {
                 setToggledLevel({ i: -1 });
               } else {
-                // var { moves, error } = solution(config.design);
-                setToggledLevel({ i });
-                // var canvas = document.getElementById("canvas-" + id);
-                // renderSequence(canvas, config, moves)
+                checkAnswers(i);
               }
             }
 
@@ -395,6 +398,7 @@ function Levels(props) {
           "align-content": "flex-end"
         }} key={id} id={id} />
       })}
+      <FloatingButton onClick={checkAnswers} label="Compile" />
     </div>
   )
 }
@@ -409,6 +413,17 @@ function StatusInfo({ message }) {
   </div>)
 }
 
+function FloatingButton({ onClick, label }) {
+  return (
+    <Draggable>
+      <button onClick={onClick}
+        className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none">
+        <span>{label}</span>
+      </button>
+    </Draggable>
+  )
+}
+
 function useSolutionFunc() {
   const solutionHarness = (answer) => {
     return (level) => {
@@ -421,7 +436,7 @@ function useSolutionFunc() {
       return result;
     }
   }
-  const [solutionFunc, _setSolutionFunc] = useState({ solution: solutionHarness(() => { }) });
+  const [solutionFunc, _setSolutionFunc] = useState({ solution: null });
   const setSolutionFunc = (func) => _setSolutionFunc({ solution: solutionHarness(func) });
   return [solutionFunc.solution, setSolutionFunc];
 }
