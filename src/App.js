@@ -436,8 +436,8 @@ function App() {
   function updateSolution(value) {
     let code = "function loopProtect(i){if(i > 10000){throw Error('Possible infinite loop detected');}};" + value + "\nwindow.solution = solution;";
     code = code + "\nwindow.solution = solution;";
-    code = code.replaceAll(/for(.*?){/sg, ';var lpi=0;for$1{;loopProtect(lpi++);')
-    code = code.replaceAll(/while(.*?){/sg, ';var lpi=0;while$1{;loopProtect(lpi++);')
+    code = code.replaceAll(/([\s\{\}\(\)\;]+?)for(.*?){/sg, '$1;var lpi=0;for$2{;loopProtect(lpi++);')
+    code = code.replaceAll(/([\s\{\}\(\)\;]+?)while(.*?){/sg, '$1;var lpi=0;while$2{;loopProtect(lpi++);')
     try {
       setFailureMessage(null);
       eval(code);
