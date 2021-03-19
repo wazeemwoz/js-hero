@@ -5,11 +5,11 @@ import levels_config from './levels';
 import { getMoves } from './engine';
 import Editor from "@monaco-editor/react";
 import * as esprima from "esprima";
-import { debounce } from 'lodash';
+import { debounce } from 'lodash/debounce';
 import * as babel from '@babel/standalone';
 import loopProtect from './loop-protect';
 
-const callback = line => {
+const callback = () => {
   throw new Error(`Bad loop detected check if a loop is infinite or running for too long`);
 };
 const counter = 10000;
