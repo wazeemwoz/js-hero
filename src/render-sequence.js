@@ -292,8 +292,21 @@ function Agents(design) {
     return container;
 }
 
+const stages = {}
+
 export function renderSequence(canvas, level, moves) {
-    var stage = new Stage(canvas.id);
+    function init() {
+        Ticker.reset();
+        if (stages[canvas.id]) {
+            stages[canvas.id].clear();
+            return stages[canvas.id];
+        }
+        var stage = new Stage(canvas.id);
+        stages[canvas.id] = stage;
+        return stage;
+    }
+
+    var stage = init();
 
     canvas.width = level.width;
     canvas.height = level.height;
