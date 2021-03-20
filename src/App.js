@@ -3,20 +3,10 @@ import { renderSequence } from './render-sequence';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import levels_config from './levels';
 import { getMoves } from './engine';
-import Editor from "@monaco-editor/react";
+import Editor, { useMonaco } from "@monaco-editor/react";
 import * as esprima from "esprima";
 import { debounce } from 'lodash';
-import * as babel from '@babel/standalone';
-import loopProtect from './loop-protect';
-
-const callback = line => {
-  throw new Error(`Bad loop detected check if a loop is infinite or running for too long`);
-};
-const counter = 10000;
-babel.registerPlugin('loopProtection', loopProtect({ counter }, callback));
-const transform = source => babel.transform(source, {
-  plugins: ['loopProtection'],
-}).code;
+import { func } from 'prop-types';
 
 const MONACO_MARKER_SEVERITY_ERROR = 8;
 
@@ -207,6 +197,7 @@ function validator(code, severity, runtimeError) {
         });
       }
     }
+    // eval(code);
   } catch (e) {
     markers.push({
       severity: severity,
@@ -353,6 +344,28 @@ function StatusInfo({ message }) {
   </div>)
 }
 
+function FloatingButton({ onClick, label }) {
+  return (
+    // <Draggable>
+    <button
+      onClick={onClick}
+      className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none"
+      style={{
+        margin: 0,
+        top: 'auto',
+        right: 200,
+        bottom: 200,
+        left: 'auto',
+        position: 'fixed',
+        zIndex: -1
+      }}
+    >
+      <span>{label}</span>
+    </button>
+    // </Draggable>
+  )
+}
+
 function useSolutionFunc() {
   const solutionHarness = (answer) => {
     return (level) => {
@@ -421,8 +434,10 @@ function App() {
   }, [levelsState.length, solution]);
 
   function updateSolution(value) {
-    let code = value + "\nwindow.solution = solution;";
-    code = transform(code);
+    let code = "function loopProtect(i){if(i > 10000){throw Error('Possible infinite loop detected');}};" + value + "\nwindow.solution = solution;";
+    code = code + "\nwindow.solution = solution;";
+    code = code.replaceAll(/([\s\{\}\(\)\;]+?)for(.*?){/sg, '$1;var lpi=0;for$2{;loopProtect(lpi++);')
+    code = code.replaceAll(/([\s\{\}\(\)\;]+?)while(.*?){/sg, '$1;var lpi=0;while$2{;loopProtect(lpi++);')
     try {
       setFailureMessage(null);
       eval(code);
