@@ -3,18 +3,14 @@ import { renderSequence } from './render-sequence';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import levels_config from './levels';
 import { getMoves } from './engine';
-import Editor, { useMonaco } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
 import * as esprima from "esprima";
-import { debounce } from 'lodash';
-import { func } from 'prop-types';
+import debounce from 'lodash/debounce';
 
 const MONACO_MARKER_SEVERITY_ERROR = 8;
 
 function setupMonaco(monaco) {
   function ShowAutocompletion(obj) {
-    // Disable default autocompletion for javascript
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({ noLib: true });
-
     // Helper function to return the monaco completion item type of a thing
     function getType(thing, isMember) {
       isMember = (isMember == undefined) ? (typeof isMember == "boolean") ? isMember : false : false; // Give isMember a default value of false
@@ -197,7 +193,6 @@ function validator(code, severity, runtimeError) {
         });
       }
     }
-    // eval(code);
   } catch (e) {
     markers.push({
       severity: severity,
@@ -278,27 +273,28 @@ function LevelToggle({ name, success, onToggle }) {
   )
 }
 
-function LevelDisplay({ message, isExpanded, id, config, moves }) {
-  const cavasId = "canvas-" + id;
+function LevelDisplay({ message, config, moves }) {
   const canvasRef = useRef(null);
-  if (isExpanded) {
-    renderSequence(document.getElementById(cavasId), config, moves);
-  }
+  useEffect(() => {
+    renderSequence(canvasRef.current, config, moves);
+  }, [canvasRef.current])
 
   return (
-    <div key={"toggle" + id} style={{ width: "100%" }}>
-      { isExpanded ? <StatusInfo type="alert" message={message} /> : null}
+    <div style={{ width: "100%" }}>
+      <StatusInfo type="alert" message={message} />
       <canvas
         ref={canvasRef}
+        id="levelDisplayCanvas"
         style={{
-          display: isExpanded ? "inline-block" : "none",
+          display: "inline-block",
           alignContent: "flex-end"
-        }} id={cavasId} />
+        }} />
     </div>
   )
 }
 
 function Levels({ levelsState, updateLevelState }) {
+  const expandedLevelState = levelsState.find(levelState => levelState.isExpanded)
   return (
     <div id="results" style={{
       height: "100vh",
@@ -326,10 +322,7 @@ function Levels({ levelsState, updateLevelState }) {
           })
         }
       </div>
-      {levelsState.map((levelState) => (
-        <LevelDisplay {...levelState} />
-      ))}
-      {/* <FloatingButton onClick={updateLevelState} label="Compile" /> */}
+      { !!expandedLevelState ? <LevelDisplay key="canvas" {...expandedLevelState} /> : null}
     </div>
   )
 }

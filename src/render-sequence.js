@@ -292,25 +292,12 @@ function Agents(design) {
     return container;
 }
 
-const stages = {}
-
 export function renderSequence(canvas, level, moves) {
-    function init() {
-        Ticker.reset();
-        if (stages[canvas.id]) {
-            stages[canvas.id].clear();
-            return stages[canvas.id];
-        }
-        var stage = new Stage(canvas.id);
-        stages[canvas.id] = stage;
-        return stage;
-    }
-
     if (!canvas) {
         return;
     }
 
-    var stage = init();
+    var stage = new Stage(canvas.id);
 
     canvas.width = level.width;
     canvas.height = level.height;
@@ -323,6 +310,7 @@ export function renderSequence(canvas, level, moves) {
         stage.addChild(agent.sprite);
     });
 
+    Ticker.reset();
     Ticker.on("tick", stage);
     Ticker.addEventListener("tick", handleTick);
 
