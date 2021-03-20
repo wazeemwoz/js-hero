@@ -175,7 +175,7 @@ const storage = {
   }
 }
 
-function validator(code, severity, runtimeError) {
+function validator(code, severity) {
   var markers = [];
   try {
     const strictCode = "'use strict';" + code;
@@ -275,9 +275,10 @@ function LevelToggle({ name, success, onToggle }) {
 
 function LevelDisplay({ message, config, moves }) {
   const canvasRef = useRef(null);
+
   useEffect(() => {
     renderSequence(canvasRef.current, config, moves);
-  }, [canvasRef.current])
+  }, [canvasRef.current, config, moves])
 
   return (
     <div style={{ width: "100%" }}>
@@ -335,28 +336,6 @@ function StatusInfo({ message }) {
     <svg className="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-alert-circle"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     <p className="px-2">{message}</p>
   </div>)
-}
-
-function FloatingButton({ onClick, label }) {
-  return (
-    // <Draggable>
-    <button
-      onClick={onClick}
-      className="text-white px-4 w-auto h-8 bg-blue-600 rounded-full hover:bg-blue-700 active:shadow-lg mouse shadow transition ease-in duration-200 focus:outline-none"
-      style={{
-        margin: 0,
-        top: 'auto',
-        right: 200,
-        bottom: 200,
-        left: 'auto',
-        position: 'fixed',
-        zIndex: -1
-      }}
-    >
-      <span>{label}</span>
-    </button>
-    // </Draggable>
-  )
 }
 
 function useSolutionFunc() {
@@ -418,11 +397,7 @@ function App() {
 
   useEffect(() => {
     if (solution) {
-      if (levelsState.length == 0) {
-        updateLevelState(-2);
-      } else {
-        updateLevelState(-1);
-      }
+      updateLevelState(-1);
     }
   }, [levelsState.length, solution]);
 
