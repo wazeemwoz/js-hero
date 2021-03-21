@@ -276,7 +276,7 @@ function LevelDisplay({ message, config, moves }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    renderSequence(canvasRef.current, config, moves);
+    renderSequence(canvasRef.current, config, JSON.parse(JSON.stringify(moves)));
   }, [canvasRef.current, config, moves])
 
   return (
@@ -344,7 +344,7 @@ function useSolutionFunc() {
       try {
         result = getMoves(level, answer);
       } catch (e) {
-        result.error = e;
+        result.message = e.message;
       }
       return result;
     }
@@ -365,13 +365,13 @@ function App() {
     let newLevelsState = [];
     const toggle_i = typeof levelClicked == "number" ? levelClicked : -1;
     for (var i = 0; i < levels_config.length && i <= currentLevel; i++) {
-      const { moves, error } = toggle_i < 0 || toggle_i == i ? solution(levels_config[i].design) : levelsState[i];
+      const { moves, message } = toggle_i < 0 || toggle_i == i ? solution(levels_config[i].design) : levelsState[i];
       const lastAction = moves[moves.length - 1][0];
       const levelPassed = lastAction.action !== 'die';
       const newLevelState = {
         id: "level-" + (i + 1),
         isExpanded: levelsState[i] ? levelsState[i].isExpanded : false,
-        message: failureMessage || (error ? error.message : null),
+        message: failureMessage || message,
         success: levelPassed,
         config: levels_config[i],
         moves: moves
@@ -398,7 +398,7 @@ function App() {
     if (solution) {
       updateLevelState(-1);
     }
-  }, [levelsState.length, solution]);
+  }, [solution]);
 
   function updateSolution(value) {
     const code = loopProtect(value, 10000, "Possible infinite loop detected") + "\nwindow.solution = solution";

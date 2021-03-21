@@ -179,7 +179,7 @@ export const getMoves = function (_map, answer) {
         return false;
     }
 
-    let error = null;
+    let message = null;
     try {
         answer(player);
         var x = player.x;
@@ -190,7 +190,7 @@ export const getMoves = function (_map, answer) {
             throw LevelError("Failed to reach target");
         }
     } catch (e) {
-        error = e;
+        message = e.message;
         // const prefix = prefixMessage || ""
         // if (e.name === 'LevelError') {
         //     console.log(prefix + ": " + e.message);
@@ -209,5 +209,5 @@ export const getMoves = function (_map, answer) {
             moves.push([{ id: 'p', action: 'die' }]);
         }
     }
-    return { moves, error };
+    return { moves, message };
 }
