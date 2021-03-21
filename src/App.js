@@ -207,7 +207,7 @@ function validator(code, severity) {
 
 function JsHeroEditor({ updateSolution }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
-  const delayedUpdate = useCallback(debounce((code, update) => handleValidation(code, update), 500), []);
+  const delayedUpdate = useCallback(debounce((code, update) => handleValidation(code, update), 750), []);
   const monacoRef = useRef(null);
   const editorRef = useRef(null);
 
@@ -365,7 +365,7 @@ function App() {
     let newLevelsState = [];
     const toggle_i = typeof levelClicked == "number" ? levelClicked : -1;
     for (var i = 0; i < levels_config.length && i <= currentLevel; i++) {
-      const { moves, error } = solution(levels_config[i].design);
+      const { moves, error } = toggle_i < 0 || toggle_i == i ? solution(levels_config[i].design) : levelsState[i];
       const lastAction = moves[moves.length - 1][0];
       const levelPassed = lastAction.action !== 'die';
       const newLevelState = {
