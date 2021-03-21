@@ -401,10 +401,13 @@ function App() {
   }, [levelsState.length, solution]);
 
   function updateSolution(value) {
-    let code = loopProtect(value, 10000, "Possible infinite loop detected");
+    const code = loopProtect(value, 10000, "Possible infinite loop detected") + "\nwindow.solution = solution";
     try {
       setFailureMessage(null);
       eval(code);
+      if (!window.solution) {
+        throw new Error("Solution function not defined, ensure solution function is valid");
+      }
       setSolutionFunc(window.solution);
     } catch (e) {
       setFailureMessage(e.message)
