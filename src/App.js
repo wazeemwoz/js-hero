@@ -6,8 +6,7 @@ import { getMoves } from './engine';
 import Editor from "@monaco-editor/react";
 import * as esprima from "esprima";
 import debounce from 'lodash/debounce';
-
-const MONACO_MARKER_SEVERITY_ERROR = 8;
+import loopProtect from './loop-protect';
 
 function setupMonaco(monaco) {
   function ShowAutocompletion(obj) {
@@ -402,10 +401,7 @@ function App() {
   }, [levelsState.length, solution]);
 
   function updateSolution(value) {
-    let code = "function loopProtect(i){if(i > 10000){throw Error('Possible infinite loop detected');}};" + value + "\nwindow.solution = solution;";
-    code = code + "\nwindow.solution = solution;";
-    code = code.replaceAll(/([\s\{\}\(\)\;]+?)for(.*?){/sg, '$1;var lpi=0;for$2{;loopProtect(lpi++);')
-    code = code.replaceAll(/([\s\{\}\(\)\;]+?)while(.*?){/sg, '$1;var lpi=0;while$2{;loopProtect(lpi++);')
+    let code = loopProtect(value, 10000, "Possible infinite loop detected");
     try {
       setFailureMessage(null);
       eval(code);
