@@ -1,4 +1,5 @@
 import './App.css';
+import './index.css';
 import { renderSequence } from './render-sequence';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import levels_config from './levels';
