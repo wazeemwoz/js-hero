@@ -234,20 +234,26 @@ function validator(code, severity) {
   return markers;
 }
 
-function LanguageSelection(props) {
+function LanguageSelection({ languageOptions, onLanguageSelect }) {
+
   const classNames = {
     selected: `px-2 border-r border-${mtheme.headerColor} mtk8`,
     unselected: `px-2 border-b-2 border-l border-r border-${mtheme.headerColor} mtk1`
   }
   return (
     <div className="text-sm text-white float-left monaco-editor-background">
-      <button className={classNames.selected}>javascript</button>
-      <button className={classNames.unselected}>python</button>
+      {languageOptions.map(option => (
+        <button
+          onClick={() => { onLanguageSelect(option.name) }}
+          className={option.selected ? classNames.selected : classNames.unselected}>
+          {option.name}
+        </button>
+      ))}
     </div>
   )
 }
 
-function JsHeroEditor({ updateSolution }) {
+function JsHeroEditor({ onCodeUpdate, languageOptions, onLanguageSelect }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
   const delayedUpdate = useCallback(debounce((code, update) => handleValidation(code, update), 750), []);
   const monacoRef = useRef(null);
@@ -277,7 +283,7 @@ function JsHeroEditor({ updateSolution }) {
   const handleEditorChange = (value) => {
     setCode(value);
     storage.setJsHeroCode(value);
-    delayedUpdate(value, updateSolution);
+    delayedUpdate(value, onCodeUpdate);
   }
 
   return (
@@ -289,7 +295,7 @@ function JsHeroEditor({ updateSolution }) {
       overflowY: "auto",
       minHeight: "100px"
     }} className={`bg-${mtheme.headerColor}`} >
-      <LanguageSelection />
+      <LanguageSelection languageOptions={languageOptions} onLanguageSelect={onLanguageSelect} />
       <Editor
         height="100vh"
         defaultLanguage="javascript"
@@ -401,22 +407,21 @@ function useSolutionFunc() {
   return [solutionFunc.solution, setSolutionFunc];
 }
 
-function HelpModal({ isModalOpen, closeModal }) {
+function SimpleModal({ isModalOpen, closeModal, title, footer, children }) {
   return (<Modal isOpen={isModalOpen} onClose={closeModal}>
-    <ModalHeader>What is JS Hero?</ModalHeader>
+    <ModalHeader>{title}</ModalHeader>
     <ModalBody>
-      JS Hero is a coding game to help people practice coding concepts. Navigate the character to the target to win each level.
-
-      Every level uses the same solution which means players have to build together an algorithm to eventually succeed.
+      {children}
     </ModalBody>
     <ModalFooter>
-      <Button className="w-full sm:w-auto" onClick={closeModal} >Gotcha!</Button>
+      {footer}
     </ModalFooter>
   </Modal>)
 }
 
 function Header(props) {
   const [isModalOpen, setModalOpen] = useState(false);
+  const closeModal = () => { setModalOpen(false) }
   return (
     <header className={`bg-${mtheme.headerColor} content-center`}>
       <nav className="justify-between w-full text-white p-2">
@@ -425,7 +430,16 @@ function Header(props) {
           <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="feather feather-help-circle"><circle cx={12} cy={12} r={10} /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1={12} y1={17} x2="12.01" y2={17} /></svg>
         </button>
       </nav>
-      <HelpModal isModalOpen={isModalOpen} closeModal={() => { setModalOpen(false) }} />
+      <SimpleModal
+        isModalOpen={isModalOpen}
+        closeModal={closeModal}
+        title="What is JS Hero?"
+        footer={<Button className="w-full sm:w-auto" onClick={closeModal} >Gotcha!</Button>}
+        closeButton="Gotcha!"
+      >
+        <p className="py-2" >JS Hero is a coding game to help people practice coding concepts. Navigate the character to the target to win each level.</p>
+        <p>Every level uses the same solution which means players have to build together an algorithm to eventually succeed.</p>
+      </SimpleModal>
     </header>
   )
 }
@@ -434,6 +448,16 @@ function App() {
   const [failureMessage, setFailureMessage] = useState(null);
   const [solution, setSolutionFunc] = useSolutionFunc();
   const [levelsState, setLevelsState] = useState([]);
+  const [modal, setModal] = useState(false);
+  const [languageOptions, setLanguageOptions] = useState([
+    {
+      selected: true,
+      name: "javascript"
+    }, {
+      selected: false,
+      name: "python"
+    }
+  ]);
 
   const updateLevelState = (levelClicked) => {
     let currentLevel = storage.getCurrentLevel();
@@ -494,12 +518,32 @@ function App() {
     <Windmill>
       <div className="App">
         <Header />
+        <SimpleModal title="Patience..." isModalOpen={modal} closeModal={() => { setModal(false) }} >
+          Python is not yet supported.
+
+          Although it is being worked on.
+        </SimpleModal>
         <div>
           <Levels
             levelsState={levelsState}
             updateLevelState={updateLevelState}
           />
-          <JsHeroEditor updateSolution={updateSolution} />
+          <JsHeroEditor
+            languageOptions={languageOptions}
+            onLanguageSelect={(language) => {
+              if (language == "python") {
+                setModal(true)
+              } else {
+                setLanguageOptions(languageOptions.map(option => {
+                  return {
+                    name: option.name,
+                    selected: option.name == language
+                  }
+                }));
+              }
+            }}
+            onCodeUpdate={updateSolution}
+          />
         </div>
       </div>
     </Windmill>
