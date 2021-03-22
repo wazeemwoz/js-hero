@@ -8,7 +8,7 @@ import Editor from "@monaco-editor/react";
 import * as esprima from "esprima";
 import debounce from 'lodash/debounce';
 import loopProtect from './loop-protect';
-import { Windmill, Modal, ModalHeader, ModalBody, ModalFooter, Button } from '@windmill/react-ui'
+import SimpleModal from './simple-modal';
 
 function calcColors(theme) {
   const themeWithHover = {};
@@ -408,18 +408,6 @@ function useSolutionFunc() {
   return [solutionFunc.solution, setSolutionFunc];
 }
 
-function SimpleModal({ isModalOpen, closeModal, title, footer, children }) {
-  return (<Modal isOpen={isModalOpen} onClose={closeModal}>
-    <ModalHeader>{title}</ModalHeader>
-    <ModalBody>
-      {children}
-    </ModalBody>
-    <ModalFooter>
-      {footer}
-    </ModalFooter>
-  </Modal>)
-}
-
 function Header(props) {
   const [isModalOpen, setModalOpen] = useState(false);
   const closeModal = () => { setModalOpen(false) }
@@ -435,7 +423,6 @@ function Header(props) {
         isModalOpen={isModalOpen}
         closeModal={closeModal}
         title="What is JS Hero?"
-        footer={<Button className="w-full sm:w-auto" onClick={closeModal} >Gotcha!</Button>}
         closeButton="Gotcha!"
       >
         <p className="py-2" >JS Hero is a coding game to help people practice coding concepts. Navigate the character to the target to win each level.</p>
@@ -516,38 +503,41 @@ function App() {
   }
 
   return (
-    <Windmill>
-      <div className="App">
-        <Header />
-        <SimpleModal title="Patience..." isModalOpen={modal} closeModal={() => { setModal(false) }} >
-          Python is not yet supported.
+    <div className="App">
+      <Header />
+      <SimpleModal
+        title="Patience..."
+        isModalOpen={modal}
+        closeModal={() => { setModal(false) }}
+        closeButton="OK"
+      >
+        Python is not yet supported.
 
-          Although it is being worked on.
+        Although it is being worked on.
         </SimpleModal>
-        <div>
-          <Levels
-            levelsState={levelsState}
-            updateLevelState={updateLevelState}
-          />
-          <JsHeroEditor
-            languageOptions={languageOptions}
-            onLanguageSelect={(language) => {
-              if (language == "python") {
-                setModal(true)
-              } else {
-                setLanguageOptions(languageOptions.map(option => {
-                  return {
-                    name: option.name,
-                    selected: option.name == language
-                  }
-                }));
-              }
-            }}
-            onCodeUpdate={updateSolution}
-          />
-        </div>
+      <div>
+        <Levels
+          levelsState={levelsState}
+          updateLevelState={updateLevelState}
+        />
+        <JsHeroEditor
+          languageOptions={languageOptions}
+          onLanguageSelect={(language) => {
+            if (language == "python") {
+              setModal(true)
+            } else {
+              setLanguageOptions(languageOptions.map(option => {
+                return {
+                  name: option.name,
+                  selected: option.name == language
+                }
+              }));
+            }
+          }}
+          onCodeUpdate={updateSolution}
+        />
       </div>
-    </Windmill>
+    </div>
   );
 }
 
