@@ -7,6 +7,7 @@ import Editor from "@monaco-editor/react";
 import * as esprima from "esprima";
 import debounce from 'lodash/debounce';
 import loopProtect from './loop-protect';
+import { Windmill, Modal, ModalHeader, ModalBody, ModalFooter, Button } from '@windmill/react-ui'
 
 function calcColors(theme) {
   const themeWithHover = {};
@@ -32,7 +33,7 @@ const mtheme = calcColors({
   headerColor: "regal-blue",
   levelBg: "indigo-50",
   good: "green-500",
-  bad: "red-400"
+  bad: "red-500"
 })
 
 
@@ -304,15 +305,15 @@ function JsHeroEditor({ updateSolution }) {
 }
 
 function LevelToggle({ name, success, onToggle }) {
-  const classColor = success ? `bg-${mtheme.good} hover:bg-green-700 text-white` : `bg-red-500 hover:bg-red-700 text-white`;
+  const classColor = success ? `bg-${mtheme.good} hover:bg-${mtheme.goodHover} text-white` : `bg-${mtheme.bad} hover:bg-${mtheme.badHover} text-white`;
   return (
-    <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex items-center"}>
-      {
-        success ?
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-smile"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-          : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-frown"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-      }
+    <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex justify-center"}>
       <span className="px-1" >Level {name}</span>
+      {
+        success
+          ? <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="px-1 feather feather-smile"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          : <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="px-1 feather feather-frown"><circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+      }
     </button>
   )
 }
@@ -400,15 +401,31 @@ function useSolutionFunc() {
   return [solutionFunc.solution, setSolutionFunc];
 }
 
+function HelpModal({ isModalOpen, closeModal }) {
+  return (<Modal isOpen={isModalOpen} onClose={closeModal}>
+    <ModalHeader>What is JS Hero?</ModalHeader>
+    <ModalBody>
+      JS Hero is a coding game to help people practice coding concepts. Navigate the character to the target to win each level.
+
+      Every level uses the same solution which means players have to build together an algorithm to eventually succeed.
+    </ModalBody>
+    <ModalFooter>
+      <Button className="w-full sm:w-auto" onClick={closeModal} >Gotcha!</Button>
+    </ModalFooter>
+  </Modal>)
+}
+
 function Header(props) {
+  const [isModalOpen, setModalOpen] = useState(false);
   return (
     <header className={`bg-${mtheme.headerColor} content-center`}>
       <nav className="justify-between w-full text-white p-2">
         <a href="/"><span className="font-semibold text-xl tracking-tight">JS Hero</span></a>
-        <button className="float-right">
+        <button className="float-right" onClick={() => { setModalOpen(true) }}>
           <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="feather feather-help-circle"><circle cx={12} cy={12} r={10} /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1={12} y1={17} x2="12.01" y2={17} /></svg>
         </button>
       </nav>
+      <HelpModal isModalOpen={isModalOpen} closeModal={() => { setModalOpen(false) }} />
     </header>
   )
 }
@@ -474,16 +491,18 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <Header />
-      <div>
-        <Levels
-          levelsState={levelsState}
-          updateLevelState={updateLevelState}
-        />
-        <JsHeroEditor updateSolution={updateSolution} />
+    <Windmill>
+      <div className="App">
+        <Header />
+        <div>
+          <Levels
+            levelsState={levelsState}
+            updateLevelState={updateLevelState}
+          />
+          <JsHeroEditor updateSolution={updateSolution} />
+        </div>
       </div>
-    </div>
+    </Windmill>
   );
 }
 
