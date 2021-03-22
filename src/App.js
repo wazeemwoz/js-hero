@@ -8,32 +8,15 @@ import debounce from 'lodash/debounce';
 import loopProtect from './loop-protect';
 import SimpleModal from './simple-modal';
 
-function calcColors(theme) {
-  const themeWithHover = {};
-  const keys = Object.keys(theme);
-  keys.forEach(key => {
-    const hoverKey = `${key}Hover`;
-    if (!key.endsWith("Hover") && !theme[hoverKey]) {
-      const value = theme[key];
-      const tokens = value.split("-");
-      const lastToken = tokens.length > 0 ? tokens[tokens.length - 1] : "";
-      const n = Number.parseInt(lastToken);
-      if (!isNaN(n)) {
-        tokens[tokens.length - 1] = `${n + 200}`;
-        themeWithHover[hoverKey] = tokens.join("-");
-      }
-      themeWithHover[key] = value;
-    }
-  })
-  return themeWithHover;
+const mtheme = {
+  headerColorBg: "bg-regal-blue",
+  headerColorBorder: "border-regal-blue",
+  levelBg: "bg-indigo-50",
+  good: "bg-green-500",
+  bad: "bg-red-500",
+  goodHover: "hover:bg-green-700",
+  badHover: "hover:bg-red-700"
 }
-
-const mtheme = calcColors({
-  headerColor: "regal-blue",
-  levelBg: "indigo-50",
-  good: "green-500",
-  bad: "red-500"
-})
 
 
 function setupMonaco(monaco) {
@@ -236,8 +219,8 @@ function validator(code, severity) {
 function LanguageSelection({ languageOptions, onLanguageSelect }) {
 
   const classNames = {
-    selected: `px-2 border-r border-${mtheme.headerColor} mtk8`,
-    unselected: `px-2 border-b-2 border-l border-r border-${mtheme.headerColor} mtk1`
+    selected: `px-2 border-r ${mtheme.headerColorBorder} mtk8`,
+    unselected: `px-2 border-b-2 border-l border-r ${mtheme.headerColorBorder} mtk1`
   }
   return (
     <div className="text-sm text-white float-left monaco-editor-background">
@@ -293,7 +276,7 @@ function JsHeroEditor({ onCodeUpdate, languageOptions, onLanguageSelect }) {
       flex: "1 1 auto",
       overflowY: "auto",
       minHeight: "100px"
-    }} className={`bg-${mtheme.headerColor}`} >
+    }} className={`${mtheme.headerColorBg}`} >
       <LanguageSelection languageOptions={languageOptions} onLanguageSelect={onLanguageSelect} />
       <Editor
         height="100vh"
@@ -310,7 +293,7 @@ function JsHeroEditor({ onCodeUpdate, languageOptions, onLanguageSelect }) {
 }
 
 function LevelToggle({ name, success, onToggle }) {
-  const classColor = success ? `bg-${mtheme.good} hover:bg-${mtheme.goodHover} text-white` : `bg-${mtheme.bad} hover:bg-${mtheme.badHover} text-white`;
+  const classColor = success ? `${mtheme.good} ${mtheme.goodHover} text-white` : `${mtheme.bad} ${mtheme.badHover} text-white`;
   return (
     <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex justify-center"}>
       <span className="px-1" >Level {name}</span>
@@ -353,7 +336,7 @@ function Levels({ levelsState, updateLevelState }) {
       float: "left",
       width: "50%",
       overflow: "scroll",
-    }} className={`bg-${mtheme.levelBg}`}>
+    }} className={`${mtheme.levelBg}`}>
       <div style={{
         display: "flex",
         flexDirection: "row",
@@ -410,7 +393,7 @@ function Header(props) {
   const [isModalOpen, setModalOpen] = useState(false);
   const closeModal = () => { setModalOpen(false) }
   return (
-    <header className={`bg-${mtheme.headerColor} content-center`}>
+    <header className={`${mtheme.headerColorBg} content-center`}>
       <nav className="justify-between w-full text-white p-2">
         <a href="/"><span className="font-semibold text-xl tracking-tight">JS Hero</span></a>
         <button className="float-right" onClick={() => { setModalOpen(true) }}>
