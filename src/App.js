@@ -8,6 +8,34 @@ import * as esprima from "esprima";
 import debounce from 'lodash/debounce';
 import loopProtect from './loop-protect';
 
+function calcColors(theme) {
+  const themeWithHover = {};
+  const keys = Object.keys(theme);
+  keys.forEach(key => {
+    const hoverKey = `${key}Hover`;
+    if (!key.endsWith("Hover") && !theme[hoverKey]) {
+      const value = theme[key];
+      const tokens = value.split("-");
+      const lastToken = tokens.length > 0 ? tokens[tokens.length - 1] : "";
+      const n = Number.parseInt(lastToken);
+      if (!isNaN(n)) {
+        tokens[tokens.length - 1] = `${n + 200}`;
+        themeWithHover[hoverKey] = tokens.join("-");
+      }
+      themeWithHover[key] = value;
+    }
+  })
+  return themeWithHover;
+}
+
+const mtheme = calcColors({
+  headerColor: "regal-blue",
+  levelBg: "indigo-50",
+  good: "green-500",
+  bad: "red-400"
+})
+
+
 function setupMonaco(monaco) {
   function ShowAutocompletion(obj) {
     // Helper function to return the monaco completion item type of a thing
@@ -205,6 +233,19 @@ function validator(code, severity) {
   return markers;
 }
 
+function LanguageSelection(props) {
+  const classNames = {
+    selected: `px-2 border-r border-${mtheme.headerColor} mtk8`,
+    unselected: `px-2 border-b-2 border-l border-r border-${mtheme.headerColor} mtk1`
+  }
+  return (
+    <div className="text-sm text-white float-left monaco-editor-background">
+      <button className={classNames.selected}>javascript</button>
+      <button className={classNames.unselected}>python</button>
+    </div>
+  )
+}
+
 function JsHeroEditor({ updateSolution }) {
   const [code, setCode] = useState(storage.getJsHeroCode());
   const delayedUpdate = useCallback(debounce((code, update) => handleValidation(code, update), 750), []);
@@ -242,8 +283,12 @@ function JsHeroEditor({ updateSolution }) {
     <div style={{
       float: "left",
       width: "50%",
-      overflow: "scroll"
-    }} >
+      overflow: "scroll",
+      flex: "1 1 auto",
+      overflowY: "auto",
+      minHeight: "100px"
+    }} className={`bg-${mtheme.headerColor}`} >
+      <LanguageSelection />
       <Editor
         height="100vh"
         defaultLanguage="javascript"
@@ -254,12 +299,12 @@ function JsHeroEditor({ updateSolution }) {
 
         beforeMount={handleEditorWillMount}
       />
-    </div>
+    </div >
   );
 }
 
 function LevelToggle({ name, success, onToggle }) {
-  const classColor = success ? "bg-green-500 hover:bg-green-700 text-white" : "bg-red-500 hover:bg-red-700 text-white";
+  const classColor = success ? `bg-${mtheme.good} hover:bg-green-700 text-white` : `bg-red-500 hover:bg-red-700 text-white`;
   return (
     <button onClick={onToggle} className={classColor + " font-bold my-1 mx-2 py-1 px-2 w-28 rounded inline-flex items-center"}>
       {
@@ -283,6 +328,7 @@ function LevelDisplay({ message, config, moves }) {
     <div style={{ width: "100%" }}>
       <StatusInfo type="alert" message={message} />
       <canvas
+        onClick={() => { renderSequence(canvasRef.current, config, JSON.parse(JSON.stringify(moves))); }}
         ref={canvasRef}
         id="levelDisplayCanvas"
         style={{
@@ -301,7 +347,7 @@ function Levels({ levelsState, updateLevelState }) {
       float: "left",
       width: "50%",
       overflow: "scroll",
-    }}>
+    }} className={`bg-${mtheme.levelBg}`}>
       <div style={{
         display: "flex",
         flexDirection: "row",
@@ -322,7 +368,7 @@ function Levels({ levelsState, updateLevelState }) {
           })
         }
       </div>
-      { !!expandedLevelState ? <LevelDisplay key="canvas" {...expandedLevelState} /> : null}
+      {!!expandedLevelState ? <LevelDisplay key="canvas" {...expandedLevelState} /> : null}
     </div>
   )
 }
@@ -352,6 +398,19 @@ function useSolutionFunc() {
   const [solutionFunc, _setSolutionFunc] = useState({ solution: null });
   const setSolutionFunc = (func) => _setSolutionFunc({ solution: solutionHarness(func) });
   return [solutionFunc.solution, setSolutionFunc];
+}
+
+function Header(props) {
+  return (
+    <header className={`bg-${mtheme.headerColor} content-center`}>
+      <nav className="justify-between w-full text-white p-2">
+        <a href="/"><span className="font-semibold text-xl tracking-tight">JS Hero</span></a>
+        <button className="float-right">
+          <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="feather feather-help-circle"><circle cx={12} cy={12} r={10} /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1={12} y1={17} x2="12.01" y2={17} /></svg>
+        </button>
+      </nav>
+    </header>
+  )
 }
 
 function App() {
@@ -415,14 +474,15 @@ function App() {
   }
 
   return (
-    <div className="App" style={{
-      height: "100vh"
-    }}>
-      <Levels
-        levelsState={levelsState}
-        updateLevelState={updateLevelState}
-      />
-      <JsHeroEditor updateSolution={updateSolution} />
+    <div className="App">
+      <Header />
+      <div>
+        <Levels
+          levelsState={levelsState}
+          updateLevelState={updateLevelState}
+        />
+        <JsHeroEditor updateSolution={updateSolution} />
+      </div>
     </div>
   );
 }
