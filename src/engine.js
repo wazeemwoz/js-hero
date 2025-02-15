@@ -184,7 +184,7 @@ export const getMoves = function (_map, answer) {
         answer(player);
         var x = player.x;
         var y = player.y;
-        if (check(x - 1, y, 'w') || check(x + 1, y, 'w') || check(x, y + 1, 'w') || check(x, y - 1, 'w')) {
+        if (check(x, y, 'p') && (check(x - 1, y, 'w') || check(x + 1, y, 'w') || check(x, y + 1, 'w') || check(x, y - 1, 'w'))) {
             moves.push([{ id: 'p', action: 'win' }, { id: 'w', action: 'win' }]);
         } else {
             throw LevelError("Failed to reach target");
